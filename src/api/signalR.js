@@ -1,18 +1,17 @@
-import { HubConnectionBuilder } from "@microsoft/signalr";
+import { HubConnectionBuilder } from '@microsoft/signalr';
 
-class SignalRService {
-  constructor() {
-    this.connection = new HubConnectionBuilder()
-      .withUrl("http://localhost:17880/chatHub") 
+const signalRService = {
+  connection: null,
+
+  startConnection: () => {
+    const connection = new HubConnectionBuilder()
+      .withUrl('http://localhost:5149/chatHub') // Replace with your SignalR endpoint
       .build();
-  }
 
-  startConnection() {
-    return this.connection.start();
-  }
+    signalRService.connection = connection;
 
-}
-
-const signalRService = new SignalRService();
+    return connection.start();
+  },
+};
 
 export default signalRService;
