@@ -5,7 +5,7 @@ function App() {
 
   const [message, setMessage] = useState(null);
   const [username, setUsername] = useState(null);
-  const [messages, setMessages] = useState(null);
+  const [messages, setMessages] = useState([]);
 
 
   const handleMessage = (e) => {
@@ -45,13 +45,13 @@ function App() {
     };
   }, []);
 
-  useEffect(() => {
+  /*useEffect(() => {
     signalRService.connection.on("ReceiveMessage", handleNewMessage);
 
     return () => {
       signalRService.connection.off("ReceiveMessage", handleNewMessage);
     };
-  }, []);
+  }, []);*/
 
   return (
     <div>
