@@ -25,7 +25,7 @@ function App() {
       console.log("No Username or Message!")
       return;
     }
-    connection.invoke('SendMessage', username, message)
+    signalRService.invoke('SendMessage', username, message)
       .then(() => {
         console.log('Message sent successfully');
       })
@@ -62,8 +62,7 @@ function App() {
         <button type="button" onClick={sendMessage}>Send</button>
       </form>
       <h1>Messages:</h1>
-      {messages &&
-        messages.map((message, index) => (
+      {messages && messages.map((message, index) => (
       <div key={index}>
         <span>{message.user}: </span>
         <span>{message.message}</span>
