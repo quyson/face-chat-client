@@ -8,7 +8,7 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [connectionId, setConnectionId] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
-
+  const [peerConnection, setPeerConnection] = useState(null);
 
   const handleMessage = (e) => {
     setMessage(e.target.value);
@@ -38,6 +38,18 @@ function App() {
     const stream = remoteStream || new MediaStream();
     stream.addTrack(track);
     setRemoteStream(stream);
+  };
+
+  const handleCall = async (e) => {
+    const connection = new RTCPeerConnection();
+    connection.onicecandidate = handleIceCandidate;
+    connection.ontrack = handleTrack;
+
+    // Add local media tracks to the connection, e.g., using getUserMedia
+
+    setPeerConnection(connection);
+    const sdpOffer = connection.createOffer();
+    signalRService.connection2.sendOffer(connectionId, sdpOffer);
   };
 
   const sendMessage = () => {
@@ -91,7 +103,7 @@ function App() {
     <form>
       <label for={"connectionId"}>Connection ID?</label>
       <input name="connectionId" onChange={(handleConnectionId)}></input>
-      <button type="button" onClick={sendCall}>Call</button>
+      <button type="button" onClick={handleCall}>Call</button>
     </form>
     </div>
   );
