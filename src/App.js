@@ -6,6 +6,8 @@ function App() {
   const [message, setMessage] = useState(null);
   const [username, setUsername] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [connectionId, setConnectionId] = useState(null);
+  const [remoteStream, setRemoteStream] = useState(null);
 
 
   const handleMessage = (e) => {
@@ -20,12 +22,23 @@ function App() {
     setMessages((prevMessages) => [...prevMessages, { user, message }]);
   };
 
+  const handleConnectionId = (e) => {
+    setConnectionId(e.target.value);
+  }
+
+  const handleTrack = (e) => {
+    const track = e.rack;
+    const stream = remoteStream || new MediaStream();
+    stream.addTrack(track);
+    setRemoteStream(stream);
+  };
+
   const sendMessage = () => {
     if(!username || !message){
       console.log("No Username or Message!")
       return;
     }
-    signalRService.invoke('SendMessage', username, message)
+    signalRService.connection1.invoke('SendMessage', username, message)
       .then(() => {
         console.log('Message sent successfully');
       })
@@ -35,13 +48,13 @@ function App() {
   }
 
   useEffect(() => {
-    signalRService.startConnection().then((response) => console.log("Connection Created!")).catch((error) => console.log(error));
-    signalRService.connection.on("ReceiveMessage", (user, message) => {
+    signalRService.startConnection1().then((response) => console.log("Connection Created!")).catch((error) => console.log(error));
+    signalRService.connection1.on("ReceiveMessage", (user, message) => {
       setMessages((prevMessages) => [...prevMessages, { user, message }]);
     });
   
     return () => {
-      signalRService.connection.off("LeaveUser");
+      signalRService.connection1.off("LeaveUser");
     };
   }, []);
 
@@ -68,6 +81,11 @@ function App() {
         <span>{message.message}</span>
       </div>
     ))}
+    <form>
+      <label for={"connectionId"}>Connection ID?</label>
+      <input name="connectionId" onChange={(handleConnectionId)}></input>
+      <button type="button" onClick={sendCall}>Call</button>
+    </form>
     </div>
   );
 }
