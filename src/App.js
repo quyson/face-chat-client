@@ -26,6 +26,13 @@ function App() {
     setConnectionId(e.target.value);
   }
 
+  const handleIceCandidate = (e) => {
+    const candidate = e.candidate;
+    if (candidate) {
+      signalRService.connection2.sendIceCandidate(connectionId, candidate);
+    }
+  };
+
   const handleTrack = (e) => {
     const track = e.rack;
     const stream = remoteStream || new MediaStream();
