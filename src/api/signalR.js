@@ -1,23 +1,47 @@
 import { HubConnectionBuilder } from '@microsoft/signalr';
 
 const signalRService = {
-  connection: null,
+  connection1: null,
+  connection2: null,
 
-  startConnection: () => {
+  startConnection1: () => {
     const connection = new HubConnectionBuilder()
       .withUrl('http://localhost:5149/chatHub', {withCredentials: true})
       .build();
 
-    signalRService.connection = connection;
+    signalRService.connection1 = connection;
     return connection.start();
   },
-  invoke: (methodName, ...args) => {
-    if (signalRService.connection) {
-      return signalRService.connection.invoke(methodName, ...args);
+  startConnection2: () => {
+    const connection = new HubConnectionBuilder()
+      .withUrl('http://localhost:5149/webHub', {withCredentials: true})
+      .build();
+
+    signalRService.connection2 = connection;
+    return connection.start();
+  },
+  invoke: (connectionName, methodName, ...args) => {
+    const connection = signalRService[connectionName];
+    if (connection) {
+      return connection.invoke(methodName, ...args);
     } else {
       return Promise.reject('SignalR connection is not initialized');
     }
   },
+  sendOffer: (connectionId, sdpOffer) => {
+    signalRService.connection2.invoke('ReceiveOffer', connectionId, sdpOffer)
+        .catch(error => console.error('Error sending offer:', error));
+  },
+
+  sendAnswer: (connectionId, sdpAnswer) => {
+    signalRService.connection2.invoke('ReceiveAnswer', connectionId, sdpAnswer)
+        .catch(error => console.error('Error sending answer:', error));
+  },
+
+  sendIceCandidate: (connectionId, candidate) => {
+    signalRService.connection2.invoke('ReceiveIceCandidate', connectionId, candidate)
+        .catch(error => console.error('Error sending ICE candidate:', error));
+  }
 };
 
 export default signalRService;
