@@ -67,7 +67,7 @@ function App() {
   }
 
   useEffect(() => {
-    signalRService.startConnection1().then((response) => console.log("Connection Created!")).catch((error) => console.log(error));
+    signalRService.startConnection1().then((response) => {console.log("Connection Created!"); setConnectionId(signalRService.connection1.connectionId)}).catch((error) => console.log(error));
     signalRService.connection1.on("ReceiveMessage", (user, message) => {
       setMessages((prevMessages) => [...prevMessages, { user, message }]);
     });
@@ -122,6 +122,7 @@ function App() {
       <input name="connectionId" onChange={(handleConnectionId)}></input>
       <button type="button" onClick={handleCall}>Call</button>
     </form>
+    <h1>My Connection ID: {connectionId}</h1>
     <video id="localVideo" playsInline autoPlay></video>
     </div>
   );
