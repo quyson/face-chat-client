@@ -77,6 +77,23 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    const constraints = {
+      video: true,
+      audio: true
+    };
+
+    navigator.mediaDevices.getUserMedia(constraints)
+      .then(stream => {
+        console.log('Got MediaStream:', stream);
+        const videoElement = document.querySelector('video#localVideo');
+        videoElement.srcObject = stream;
+      })
+      .catch(error => {
+        console.error('Error accessing media devices.', error);
+      });
+  }, []);
+
   /*useEffect(() => {
     signalRService.connection.on("ReceiveMessage", handleNewMessage);
 
@@ -105,6 +122,7 @@ function App() {
       <input name="connectionId" onChange={(handleConnectionId)}></input>
       <button type="button" onClick={handleCall}>Call</button>
     </form>
+    <video id="localVideo" playsInline autoPlay></video>
     </div>
   );
 }
