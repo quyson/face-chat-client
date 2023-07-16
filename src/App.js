@@ -68,8 +68,14 @@ function App() {
 
   useEffect(() => {
     signalRService.startConnection1().then((response) => {console.log("Connection Created!"); setConnectionId(signalRService.connection1.connectionId)}).catch((error) => console.log(error));
-    signalRService.connection1.on("ReceiveMessage", (user, message) => {
-      setMessages((prevMessages) => [...prevMessages, { user, message }]);
+    signalRService.connection1.on("ReceiveMessage", (user, message, date) => {
+      setMessages((prevMessages) => {
+        const messageExists = prevMessages.find(m => m.user === user && m.message === message && m.date === date);
+        if (!messageExists) {
+          return [...prevMessages, { user, message, date }];
+        }
+        return prevMessages;
+      });
     });
   
     return () => {
@@ -95,10 +101,10 @@ function App() {
   }, []);
 
   /*useEffect(() => {
-    signalRService.connection.on("ReceiveMessage", handleNewMessage);
+    signalRService.connection1.on("ReceiveMessage", handleNewMessage);
 
     return () => {
-      signalRService.connection.off("ReceiveMessage", handleNewMessage);
+      signalRService.connection1.off("ReceiveMessage", handleNewMessage);
     };
   }, []);*/
 
@@ -115,6 +121,7 @@ function App() {
       <div key={index}>
         <span>{message.user}: </span>
         <span>{message.message}</span>
+        <span>{message.date}</span>
       </div>
     ))}
     <form>
