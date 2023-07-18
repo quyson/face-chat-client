@@ -17,10 +17,6 @@ function App() {
     setUsername(e.target.value);
   }
 
-  const handleNewMessage = (user, message) => {
-    setMessages((prevMessages) => [...prevMessages, { user, message }]);
-  };
-
   const handleConnectionId = (e) => {
     setConnectionId(e.target.value);
   }
@@ -87,6 +83,22 @@ function App() {
   
     return () => {
       signalRService.connection1.off("LeaveUser");
+    };
+  }, []);
+
+  useEffect(() => {
+    const peerConnection = new RTCPeerConnection(configuration);
+
+    signalRService.connection2.on("ReceiveOffer", (connectionId, sdpOffer) => {
+      if(sdpOffer){
+        peerConnection.setRemoteDescription(new RTCSessionDescription(sdpOffer));
+        const answer = peerConnection.createAnswer();
+        peerConnection.setLocalDescription(answer);
+        signalRService.connection2.invoke("Answer", connectionId, answer)
+      }
+    })
+    return () => {
+      signalRService.connection2.removeEventListener('Left the Chat');
     };
   }, []);
 
