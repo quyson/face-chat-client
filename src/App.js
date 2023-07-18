@@ -41,18 +41,21 @@ function App() {
     peerConnection.onicecandidate = handleIceCandidate;
     peerConnection.ontrack = handleTrack;
 
-    // Add local media tracks to the connection, e.g., using getUserMedia
-
-    signalRService.connection2.on("ReceiveAnswer", (connectionId, sdpAnswer) => {
-      if(sdpAnswer){
-        const remoteDesc = new RTCSessionDescription(sdpAnswer);
-        peerConnection.setRemoteDescription(remoteDesc);
-      } 
-
-      const offer = peerConnection.createOffer();
-      peerConnection.setLocalDescription(offer);
-      signalRService.connection2.invoke("Offer", connectionId, offer);
-    });
+    const handleAnswer = async (connectionId, sdpAnswer) => {
+      try{
+        if(sdpAnswer){
+          const remoteDesc = new RTCSessionDescription(sdpAnswer);
+          await peerConnection.setRemoteDescription(remoteDesc);
+        } 
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        signalRService.connection2.invoke("Offer", connectionId, offer);
+      }
+      catch(error){
+        console.log(error);
+      }
+    }
+    signalRService.connection2.on("ReceiveAnswer", handleAnswer);
   };
 
   const sendMessage = () => {
@@ -71,6 +74,7 @@ function App() {
 
   useEffect(() => {
     signalRService.startConnection1().then((response) => {console.log("Connection Created!"); setConnectionId(signalRService.connection1.connectionId)}).catch((error) => console.log(error));
+    signalRService.startConnection2().then((response) => {console.log("Connection to WebRTC Hub Created!")}).catch((error) => console.log("Error!"));
     signalRService.connection1.on("ReceiveMessage", (user, message, date) => {
       setMessages((prevMessages) => {
         const messageExists = prevMessages.find(m => m.user === user && m.message === message && m.date === date);
@@ -83,20 +87,30 @@ function App() {
   
     return () => {
       signalRService.connection1.off("LeaveUser");
+      signalRService.connection2.off("LeaveUser");
     };
   }, []);
 
   useEffect(() => {
-    const peerConnection = new RTCPeerConnection(configuration);
+    const configuration = {'iceServers': [{'urls': 'stun:stun.l.google.com:19302'}]}
+    const peerConnection = new RTCPeerConnection(configuration)
 
-    signalRService.connection2.on("ReceiveOffer", (connectionId, sdpOffer) => {
-      if(sdpOffer){
-        peerConnection.setRemoteDescription(new RTCSessionDescription(sdpOffer));
-        const answer = peerConnection.createAnswer();
-        peerConnection.setLocalDescription(answer);
-        signalRService.connection2.invoke("Answer", connectionId, answer)
+    const handleReceiveOffer = async (connectionId, sdpOffer) => {
+      try{
+        if (sdpOffer) {
+          await peerConnection.setRemoteDescription(new RTCSessionDescription(sdpOffer));
+          const answer = await peerConnection.createAnswer();
+          await peerConnection.setLocalDescription(answer);
+          signalRService.connection2.invoke("Answer", connectionId, answer);
+        }
       }
-    })
+      catch(error){
+        console.log(error);
+      }
+    };
+
+    signalRService.connection2.on("ReceiveOffer", handleReceiveOffer);
+  
     return () => {
       signalRService.connection2.removeEventListener('Left the Chat');
     };
