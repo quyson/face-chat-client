@@ -8,7 +8,6 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [connectionId, setConnectionId] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
-  const [peerConnection, setPeerConnection] = useState(null);
 
   const handleMessage = (e) => {
     setMessage(e.target.value);
@@ -41,15 +40,23 @@ function App() {
   };
 
   const handleCall = async (e) => {
-    const connection = new RTCPeerConnection();
-    connection.onicecandidate = handleIceCandidate;
-    connection.ontrack = handleTrack;
+    const configuration = {'iceServers': [{'urls': 'stun:stun.l.google.com:19302'}]}
+    const peerConnection = new RTCPeerConnection(configuration);
+    peerConnection.onicecandidate = handleIceCandidate;
+    peerConnection.ontrack = handleTrack;
 
     // Add local media tracks to the connection, e.g., using getUserMedia
 
-    setPeerConnection(connection);
-    const sdpOffer = connection.createOffer();
-    signalRService.connection2.sendOffer(connectionId, sdpOffer);
+    signalRService.connection2.on("ReceiveAnswer", (connectionId, sdpAnswer) => {
+      if(sdpAnswer){
+        const remoteDesc = new RTCSessionDescription(sdpAnswer);
+        peerConnection.setRemoteDescription(remoteDesc);
+      } 
+
+      const offer = peerConnection.createOffer();
+      peerConnection.setLocalDescription(offer);
+      signalRService.connection2.invoke("Offer", connectionId, offer);
+    });
   };
 
   const sendMessage = () => {
@@ -75,7 +82,7 @@ function App() {
           return [...prevMessages, { user, message, date }];
         }
         return prevMessages;
-      });
+    });
     });
   
     return () => {
@@ -99,14 +106,6 @@ function App() {
         console.error('Error accessing media devices.', error);
       });
   }, []);
-
-  /*useEffect(() => {
-    signalRService.connection1.on("ReceiveMessage", handleNewMessage);
-
-    return () => {
-      signalRService.connection1.off("ReceiveMessage", handleNewMessage);
-    };
-  }, []);*/
 
   return (
     <div>
