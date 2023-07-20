@@ -7,6 +7,7 @@ function App() {
   const [username, setUsername] = useState(null);
   const [messages, setMessages] = useState([]);
   const [connectionId, setConnectionId] = useState(null);
+  const [myConnectionId, setMyConnectionId] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
 
   const handleMessage = (e) => {
@@ -47,15 +48,16 @@ function App() {
           const remoteDesc = new RTCSessionDescription(sdpAnswer);
           await peerConnection.setRemoteDescription(remoteDesc);
         } 
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-        signalRService.connection2.invoke("Offer", connectionId, offer);
       }
       catch(error){
         console.log(error);
       }
     }
     signalRService.connection2.on("ReceiveAnswer", handleAnswer);
+
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+    signalRService.connection2.invoke('Offer', JSON.stringify(connectionId), JSON.stringify(offer));
   };
 
   const sendMessage = () => {
@@ -73,7 +75,7 @@ function App() {
   }
 
   useEffect(() => {
-    signalRService.startConnection1().then((response) => {console.log("Connection Created!"); setConnectionId(signalRService.connection1.connectionId)}).catch((error) => console.log(error));
+    signalRService.startConnection1().then((response) => {console.log("Connection Created!"); setMyConnectionId(signalRService.connection1.connectionId)}).catch((error) => console.log(error));
     signalRService.startConnection2().then((response) => {console.log("Connection to WebRTC Hub Created!")}).catch((error) => console.log("Error!"));
     signalRService.connection1.on("ReceiveMessage", (user, message, date) => {
       setMessages((prevMessages) => {
@@ -87,7 +89,6 @@ function App() {
   
     return () => {
       signalRService.connection1.off("LeaveUser");
-      signalRService.connection2.off("LeaveUser");
     };
   }, []);
 
@@ -97,11 +98,13 @@ function App() {
 
     const handleReceiveOffer = async (connectionId, sdpOffer) => {
       try{
+        const sdpOffer = JSON.parse(sdpOffer);
+        console.log(sdpOffer);
         if (sdpOffer) {
           await peerConnection.setRemoteDescription(new RTCSessionDescription(sdpOffer));
           const answer = await peerConnection.createAnswer();
           await peerConnection.setLocalDescription(answer);
-          signalRService.connection2.invoke("Answer", connectionId, answer);
+          signalRService.connection2.sendAnswer(connectionId, answer);
         }
       }
       catch(error){
@@ -112,7 +115,7 @@ function App() {
     signalRService.connection2.on("ReceiveOffer", handleReceiveOffer);
   
     return () => {
-      signalRService.connection2.removeEventListener('Left the Chat');
+      signalRService.connection2.off("LeaveUser");
     };
   }, []);
 
@@ -154,7 +157,7 @@ function App() {
       <input name="connectionId" onChange={(handleConnectionId)}></input>
       <button type="button" onClick={handleCall}>Call</button>
     </form>
-    <h1>My Connection ID: {connectionId}</h1>
+    <h1>My Connection ID: {myConnectionId}</h1>
     <video id="localVideo" playsInline autoPlay></video>
     </div>
   );

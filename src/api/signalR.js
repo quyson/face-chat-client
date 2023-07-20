@@ -14,22 +14,22 @@ const signalRService = {
   },
   startConnection2: () => {
     const connection = new HubConnectionBuilder()
-      .withUrl('http://localhost:5149/webHub', {withCredentials: true})
+      .withUrl('http://localhost:5149/webRTC', {withCredentials: true})
       .build();
 
     signalRService.connection2 = connection;
     return connection.start();
   },
-  invoke: (connectionName, methodName, ...args) => {
+  /*invoke: (connectionName, methodName, ...args) => {
     const connection = signalRService[connectionName];
     if (connection) {
       return connection.invoke(methodName, ...args);
     } else {
       return Promise.reject('SignalR connection is not initialized');
     }
-  },
+  },*/
   sendOffer: (connectionId, sdpOffer) => {
-    signalRService.connection2.invoke('ReceiveOffer', connectionId, sdpOffer)
+    signalRService.connection2.invoke('Offer', connectionId, sdpOffer)
         .catch(error => console.error('Error sending offer:', error));
   },
 
