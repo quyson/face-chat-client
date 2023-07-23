@@ -8,6 +8,7 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [connectionId, setConnectionId] = useState(null);
   const [myConnectionId, setMyConnectionId] = useState(null);
+  const [myConnectionId2, setMyConnectionId2] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
 
   const handleMessage = (e) => {
@@ -57,7 +58,7 @@ function App() {
 
     const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
-    signalRService.connection2.invoke('Offer', JSON.stringify(connectionId), JSON.stringify(offer));
+    signalRService.connection2.invoke('Offer', connectionId, JSON.stringify(offer));
   };
 
   const sendMessage = () => {
@@ -76,7 +77,7 @@ function App() {
 
   useEffect(() => {
     signalRService.startConnection1().then((response) => {console.log("Connection Created!"); setMyConnectionId(signalRService.connection1.connectionId)}).catch((error) => console.log(error));
-    signalRService.startConnection2().then((response) => {console.log("Connection to WebRTC Hub Created!")}).catch((error) => console.log("Error!"));
+    signalRService.startConnection2().then((response) => {console.log("Connection to WebRTC Hub Created!"); setMyConnectionId2(signalRService.connection2.connectionId)}).catch((error) => console.log("Error!"));
     signalRService.connection1.on("ReceiveMessage", (user, message, date) => {
       setMessages((prevMessages) => {
         const messageExists = prevMessages.find(m => m.user === user && m.message === message && m.date === date);
@@ -97,9 +98,9 @@ function App() {
     const peerConnection = new RTCPeerConnection(configuration)
 
     const handleReceiveOffer = async (connectionId, sdpOffer) => {
+      console.log(connectionId);
+      console.log(sdpOffer);
       try{
-        const sdpOffer = JSON.parse(sdpOffer);
-        console.log(sdpOffer);
         if (sdpOffer) {
           await peerConnection.setRemoteDescription(new RTCSessionDescription(sdpOffer));
           const answer = await peerConnection.createAnswer();
@@ -158,6 +159,7 @@ function App() {
       <button type="button" onClick={handleCall}>Call</button>
     </form>
     <h1>My Connection ID: {myConnectionId}</h1>
+    <h1>My Connection ID2: {myConnectionId2}</h1>
     <video id="localVideo" playsInline autoPlay></video>
     </div>
   );
