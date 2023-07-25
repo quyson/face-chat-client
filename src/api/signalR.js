@@ -28,18 +28,18 @@ const signalRService = {
       return Promise.reject('SignalR connection is not initialized');
     }
   },*/
-  sendOffer: (connectionId, sdpOffer) => {
-    signalRService.connection2.invoke('Offer', connectionId, sdpOffer)
+  sendOffer: (connectionId, sdpOffer, username) => {
+    signalRService.connection2.invoke('Offer', connectionId, sdpOffer, username)
         .catch(error => console.error('Error sending offer:', error));
   },
 
-  sendAnswer: (connectionId, sdpAnswer) => {
-    signalRService.connection2.invoke('ReceiveAnswer', connectionId, sdpAnswer)
+  sendAnswer: (connectionId, sdpAnswer, username) => {
+    signalRService.connection2.invoke('ReceiveAnswer', connectionId, sdpAnswer, username)
         .catch(error => console.error('Error sending answer:', error));
   },
 
   sendIceCandidate: (connectionId, candidate) => {
-    signalRService.connection2.invoke('ReceiveIceCandidate', connectionId, candidate)
+    signalRService.connection2.invoke('SendIceCandidate', connectionId, candidate)
         .catch(error => console.error('Error sending ICE candidate:', error));
   }
 };

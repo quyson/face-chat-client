@@ -6,10 +6,9 @@ function App() {
   const [message, setMessage] = useState(null);
   const [username, setUsername] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [connectionId, setConnectionId] = useState(null);
+  const [userId, setUserId] = useState(null);
   const [myConnectionId, setMyConnectionId] = useState(null);
-  const [myConnectionId2, setMyConnectionId2] = useState(null);
-  const [remoteStream, setRemoteStream] = useState(null);
+  const [peerName, setPeerName] = useState(null);
 
   const handleMessage = (e) => {
     setMessage(e.target.value);
@@ -19,46 +18,66 @@ function App() {
     setUsername(e.target.value);
   }
 
-  const handleConnectionId = (e) => {
-    setConnectionId(e.target.value);
+  const handleUserId = (e) => {
+    setUserId(e.target.value);
   }
-
-  const handleIceCandidate = (e) => {
-    const candidate = e.candidate;
-    if (candidate) {
-      signalRService.connection2.sendIceCandidate(connectionId, candidate);
-    }
-  };
-
-  const handleTrack = (e) => {
-    const track = e.rack;
-    const stream = remoteStream || new MediaStream();
-    stream.addTrack(track);
-    setRemoteStream(stream);
-  };
 
   const handleCall = async (e) => {
     const configuration = {'iceServers': [{'urls': 'stun:stun.l.google.com:19302'}]}
     const peerConnection = new RTCPeerConnection(configuration);
-    peerConnection.onicecandidate = handleIceCandidate;
-    peerConnection.ontrack = handleTrack;
+    peerConnection.onicecandidate = (e) => {
+      if(e.candidate){
+        try{
+          signalRService.connection2.invoke("SendIceCandidate", userId, JSON.stringify(e.candidate))
+        } catch (error){
+          console.log(`Unable To Send Ice Candidate: ${error}`);
+        }
+      }
+    }
 
-    const handleAnswer = async (connectionId, sdpAnswer) => {
+    navigator.mediaDevices.getUserMedia({video: true, audio: true})
+    .then((stream) => {
+      const myVideo = document.querySelector("#local");
+      myVideo.srcObject = stream;
+      stream.getTracks().forEach((track) => {
+        peerConnection.addTrack(track, stream);
+      })
+    });
+
+    const remoteVideo = document.querySelector('#remote');
+    peerConnection.addEventListener('track', async (event) => {
+      const [remoteStream] = event.streams;
+      remoteVideo.srcObject = remoteStream;
+    });
+
+    const handleAnswer = async (connectionId, sdpAnswer, peername) => {
       try{
         if(sdpAnswer){
-          const remoteDesc = new RTCSessionDescription(sdpAnswer);
-          await peerConnection.setRemoteDescription(remoteDesc);
+          await peerConnection.setRemoteDescription(new RTCSessionDescription(JSON.parse(sdpAnswer)));
+          setPeerName(peername);
+          
         } 
       }
       catch(error){
-        console.log(error);
+        console.log(`Unable to Secure SDPAnswer: ${error}`);
       }
     }
+
     signalRService.connection2.on("ReceiveAnswer", handleAnswer);
 
+    signalRService.connection2.on('ReceiveIceCandidate', (connectionId, candidate) => {
+      if (candidate) {
+        try {
+          peerConnection.addIceCandidate(JSON.parse(candidate));
+        } catch (error) {
+          console.error(`Unable to Add Ice Candidate ${error}`);
+        }
+      }
+    });
+
     const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
-    signalRService.connection2.invoke('Offer', connectionId, JSON.stringify(offer));
+    await peerConnection.setLocalDescription(new RTCSessionDescription(offer));
+    signalRService.connection2.invoke('Offer', userId, JSON.stringify(peerConnection.localDescription), username);
   };
 
   const sendMessage = () => {
@@ -76,8 +95,8 @@ function App() {
   }
 
   useEffect(() => {
-    signalRService.startConnection1().then((response) => {console.log("Connection Created!"); setMyConnectionId(signalRService.connection1.connectionId)}).catch((error) => console.log(error));
-    signalRService.startConnection2().then((response) => {console.log("Connection to WebRTC Hub Created!"); setMyConnectionId2(signalRService.connection2.connectionId)}).catch((error) => console.log("Error!"));
+    signalRService.startConnection1().then((response) => {console.log("Connection Created!")}).catch((error) => console.log(error));
+    signalRService.startConnection2().then((response) => {console.log("Connection to WebRTC Hub Created!"); setMyConnectionId(signalRService.connection2.connectionId)}).catch((error) => console.log("Error!"));
     signalRService.connection1.on("ReceiveMessage", (user, message, date) => {
       setMessages((prevMessages) => {
         const messageExists = prevMessages.find(m => m.user === user && m.message === message && m.date === date);
@@ -97,21 +116,38 @@ function App() {
     const configuration = {'iceServers': [{'urls': 'stun:stun.l.google.com:19302'}]}
     const peerConnection = new RTCPeerConnection(configuration)
 
-    const handleReceiveOffer = async (connectionId, sdpOffer) => {
-      console.log(connectionId);
-      console.log(sdpOffer);
+    const handleReceiveOffer = async (userId, sdpOffer, peername) => {
       try{
         if (sdpOffer) {
-          await peerConnection.setRemoteDescription(new RTCSessionDescription(sdpOffer));
+          await peerConnection.setRemoteDescription(JSON.parse(sdpOffer));
           const answer = await peerConnection.createAnswer();
-          await peerConnection.setLocalDescription(answer);
-          signalRService.connection2.sendAnswer(connectionId, answer);
+          await peerConnection.setLocalDescription(new RTCSessionDescription(answer));
+          signalRService.connection2.invoke('Answer', userId, JSON.stringify(peerConnection.localDescription), username);
+          setPeerName(peername);
+          navigator.mediaDevices.getUserMedia({video: true, audio: true})
+          .then((stream) => {
+            const myVideo = document.querySelector("#local");
+            myVideo.srcObject = stream;
+            stream.getTracks().forEach((track) => {
+              peerConnection.addTrack(track, stream);
+            })
+          });
         }
       }
       catch(error){
         console.log(error);
       }
     };
+
+    signalRService.connection2.on('ReceiveIceCandidate', (connectionId, candidate) => {
+      if (candidate) {
+        try {
+          peerConnection.addIceCandidate(JSON.parse(candidate));
+        } catch (error) {
+          console.error(`Unable to Add Ice Candidate ${error}`);
+        }
+      }
+    });
 
     signalRService.connection2.on("ReceiveOffer", handleReceiveOffer);
   
@@ -120,22 +156,7 @@ function App() {
     };
   }, []);
 
-  useEffect(() => {
-    const constraints = {
-      video: true,
-      audio: true
-    };
-
-    navigator.mediaDevices.getUserMedia(constraints)
-      .then(stream => {
-        console.log('Got MediaStream:', stream);
-        const videoElement = document.querySelector('video#localVideo');
-        videoElement.srcObject = stream;
-      })
-      .catch(error => {
-        console.error('Error accessing media devices.', error);
-      });
-  }, []);
+  
 
   return (
     <div>
@@ -154,13 +175,20 @@ function App() {
       </div>
     ))}
     <form>
-      <label for={"connectionId"}>Connection ID?</label>
-      <input name="connectionId" onChange={(handleConnectionId)}></input>
+      <label for={"connectionId"}>User Connection ID?</label>
+      <input name="connectionId" onChange={(handleUserId)}></input>
       <button type="button" onClick={handleCall}>Call</button>
     </form>
     <h1>My Connection ID: {myConnectionId}</h1>
-    <h1>My Connection ID2: {myConnectionId2}</h1>
-    <video id="localVideo" playsInline autoPlay></video>
+    <div>
+      <h3>Local</h3>
+      <video id="local" playsInline autoPlay></video>
+    </div>
+    <div>
+        <h3>remote</h3>
+        {peerName ? <div>{peerName}</div> : null}
+      <video id="remote" playsInline autoPlay></video>
+    </div>
     </div>
   );
 }
