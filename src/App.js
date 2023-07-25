@@ -39,23 +39,13 @@ function App() {
     .then((stream) => {
       const myVideo = document.querySelector("#local");
       myVideo.srcObject = stream;
-      stream.getTracks().forEach((track) => {
-        peerConnection.addTrack(track, stream);
-      })
     });
-
-    const remoteVideo = document.querySelector('#remote');
-    peerConnection.addEventListener('track', async (event) => {
-      const [remoteStream] = event.streams;
-      remoteVideo.srcObject = remoteStream;
-    });
-
+    
     const handleAnswer = async (connectionId, sdpAnswer, peername) => {
       try{
         if(sdpAnswer){
           await peerConnection.setRemoteDescription(new RTCSessionDescription(JSON.parse(sdpAnswer)));
           setPeerName(peername);
-          
         } 
       }
       catch(error){
@@ -156,6 +146,21 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (peerConnection) {
+      const handleIncomingTrack = (event) => {
+        const [remoteStream] = event.streams;
+        remoteStream.getTracks().forEach((track) => {
+          peerConnection.addTrack(track, remoteStream);
+        });
+        remoteVideo.srcObject = remoteStream;
+      };
+      peerConnection.addEventListener("track", handleIncomingTrack);
+      return () => {
+        peerConnection.removeEventListener("track", handleIncomingTrack);
+      };
+    }
+  }, [peerConnection]);
   
 
   return (
@@ -186,7 +191,7 @@ function App() {
     </div>
     <div>
         <h3>remote</h3>
-        {peerName ? <div>{peerName}</div> : null}
+        {peerName ? <div>{peerName}</div> : <div>Remote User</div>}
       <video id="remote" playsInline autoPlay></video>
     </div>
     </div>
